@@ -125,148 +125,163 @@ using (var scope = app.Services.CreateScope())
     }
     else if (db.Database.IsRelational())
     {
-        await db.Database.MigrateAsync();
+        try
+        {
+            await db.Database.MigrateAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: database migration failed: {ex.Message}");
+            // Continue startup even if migrations fail (useful for local/dev setups)
+        }
     }
     else
     {
         await db.Database.EnsureCreatedAsync();
     }
 
-    var defaultAdminEmail = builder.Configuration["DefaultAdmin:Email"] ?? "admin@library.edu";
-    var defaultAdminPassword = builder.Configuration["DefaultAdmin:Password"] ?? "Admin@123";
-
-    if (!await db.Students.AnyAsync(s => s.Role == "Admin" || s.Contact == defaultAdminEmail))
+    try
     {
-        db.Students.Add(new Student
+        var defaultAdminEmail = builder.Configuration["DefaultAdmin:Email"] ?? "admin@library.edu";
+        var defaultAdminPassword = builder.Configuration["DefaultAdmin:Password"] ?? "Admin@123";
+
+        if (!await db.Students.AnyAsync(s => s.Role == "Admin" || s.Contact == defaultAdminEmail))
         {
-            Name = "System Administrator",
-            RollNo = "ADMIN-001",
-            Dept = "Administration",
-            Semester = 1,
-            Contact = defaultAdminEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultAdminPassword),
-            Role = "Admin",
-            IsVerified = true
-        });
-    }
-
-    if (!await db.Books.AnyAsync())
-    {
-        db.Books.AddRange(
-            new Book
+            db.Students.Add(new Student
             {
-                Title = "Clean Code",
-                Author = "Robert C. Martin",
-                Isbn = "9780132350884",
-                Genre = "Software Engineering",
-                CopiesAvailable = 5,
-                Description = "A handbook of agile software craftsmanship.",
-                Publisher = "Prentice Hall",
-                PublishedYear = 2008
-            },
-            new Book
-            {
-                Title = "The Pragmatic Programmer",
-                Author = "Andrew Hunt",
-                Isbn = "9780201616224",
-                Genre = "Programming",
-                CopiesAvailable = 4,
-                Description = "Practical advice for modern software developers.",
-                Publisher = "Addison-Wesley",
-                PublishedYear = 1999
-            },
-            new Book
-            {
-                Title = "Database System Concepts",
-                Author = "Abraham Silberschatz",
-                Isbn = "9780078022159",
-                Genre = "Database",
-                CopiesAvailable = 3,
-                Description = "Foundational concepts in database design and management.",
-                Publisher = "McGraw-Hill",
-                PublishedYear = 2010
-            }
-        );
-    }
-
-    if (!await db.Rooms.AnyAsync())
-    {
-        db.Rooms.AddRange(
-            new Room { RoomNo = "A-101", Capacity = 40, BenchLayout = "4x10" },
-            new Room { RoomNo = "B-204", Capacity = 60, BenchLayout = "5x12" },
-            new Room { RoomNo = "C-301", Capacity = 50, BenchLayout = "5x10" }
-        );
-    }
-
-    if (!await db.Invigilators.AnyAsync())
-    {
-        db.Invigilators.AddRange(
-            new Invigilator { Name = "Nadia Rahman", Dept = "Computer Science" },
-            new Invigilator { Name = "Imran Hossain", Dept = "Mathematics" },
-            new Invigilator { Name = "Sadia Akter", Dept = "Physics" }
-        );
-    }
-
-    if (!await db.Exams.AnyAsync())
-    {
-        db.Exams.AddRange(
-            new Exam { Course = "CSE 201", Semester = 2, ExamDate = DateTime.UtcNow.AddDays(7), TimeSlot = "09:00-11:00" },
-            new Exam { Course = "MATH 250", Semester = 2, ExamDate = DateTime.UtcNow.AddDays(9), TimeSlot = "13:00-15:00" }
-        );
-    }
-
-    if (!await db.Students.AnyAsync(s => s.Role == "Student"))
-    {
-        db.Students.AddRange(
-            new Student
-            {
-                Name = "Student One",
-                RollNo = "CS-2024-001",
-                Dept = "Computer Science",
-                Semester = 2,
-                Contact = "student1@library.edu",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Student@123"),
-                Role = "Student",
+                Name = "System Administrator",
+                RollNo = "ADMIN-001",
+                Dept = "Administration",
+                Semester = 1,
+                Contact = defaultAdminEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultAdminPassword),
+                Role = "Admin",
                 IsVerified = true
-            },
-            new Student
-            {
-                Name = "Student Two",
-                RollNo = "CS-2024-002",
-                Dept = "Computer Science",
-                Semester = 2,
-                Contact = "student2@library.edu",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Student@123"),
-                Role = "Student",
-                IsVerified = true
-            }
-        );
-    }
+            });
+        }
 
-    var librarianEmail = "librarian1@library.edu";
-    var librarian = await db.Students.FirstOrDefaultAsync(s => s.Contact == librarianEmail);
-    if (librarian == null)
-    {
-        db.Students.Add(new Student
+        if (!await db.Books.AnyAsync())
         {
-            Name = "Library Librarian",
-            RollNo = "LIB-001",
-            Dept = "Library Services",
-            Semester = 1,
-            Contact = librarianEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Lib@1234"),
-            Role = "Librarian",
-            IsVerified = true
-        });
-    }
-    else
-    {
-        librarian.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Lib@1234");
-        librarian.Role = "Librarian";
-        librarian.IsVerified = true;
-    }
+            db.Books.AddRange(
+                new Book
+                {
+                    Title = "Clean Code",
+                    Author = "Robert C. Martin",
+                    Isbn = "9780132350884",
+                    Genre = "Software Engineering",
+                    CopiesAvailable = 5,
+                    Description = "A handbook of agile software craftsmanship.",
+                    Publisher = "Prentice Hall",
+                    PublishedYear = 2008
+                },
+                new Book
+                {
+                    Title = "The Pragmatic Programmer",
+                    Author = "Andrew Hunt",
+                    Isbn = "9780201616224",
+                    Genre = "Programming",
+                    CopiesAvailable = 4,
+                    Description = "Practical advice for modern software developers.",
+                    Publisher = "Addison-Wesley",
+                    PublishedYear = 1999
+                },
+                new Book
+                {
+                    Title = "Database System Concepts",
+                    Author = "Abraham Silberschatz",
+                    Isbn = "9780078022159",
+                    Genre = "Database",
+                    CopiesAvailable = 3,
+                    Description = "Foundational concepts in database design and management.",
+                    Publisher = "McGraw-Hill",
+                    PublishedYear = 2010
+                }
+            );
+        }
 
-    await db.SaveChangesAsync();
+        if (!await db.Rooms.AnyAsync())
+        {
+            db.Rooms.AddRange(
+                new Room { RoomNo = "A-101", Capacity = 40, BenchLayout = "4x10" },
+                new Room { RoomNo = "B-204", Capacity = 60, BenchLayout = "5x12" },
+                new Room { RoomNo = "C-301", Capacity = 50, BenchLayout = "5x10" }
+            );
+        }
+
+        if (!await db.Invigilators.AnyAsync())
+        {
+            db.Invigilators.AddRange(
+                new Invigilator { Name = "Nadia Rahman", Dept = "Computer Science" },
+                new Invigilator { Name = "Imran Hossain", Dept = "Mathematics" },
+                new Invigilator { Name = "Sadia Akter", Dept = "Physics" }
+            );
+        }
+
+        if (!await db.Exams.AnyAsync())
+        {
+            db.Exams.AddRange(
+                new Exam { Course = "CSE 201", Semester = 2, ExamDate = DateTime.UtcNow.AddDays(7), TimeSlot = "09:00-11:00" },
+                new Exam { Course = "MATH 250", Semester = 2, ExamDate = DateTime.UtcNow.AddDays(9), TimeSlot = "13:00-15:00" }
+            );
+        }
+
+        if (!await db.Students.AnyAsync(s => s.Role == "Student"))
+        {
+            db.Students.AddRange(
+                new Student
+                {
+                    Name = "Student One",
+                    RollNo = "CS-2024-001",
+                    Dept = "Computer Science",
+                    Semester = 2,
+                    Contact = "student1@library.edu",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Student@123"),
+                    Role = "Student",
+                    IsVerified = true
+                },
+                new Student
+                {
+                    Name = "Student Two",
+                    RollNo = "CS-2024-002",
+                    Dept = "Computer Science",
+                    Semester = 2,
+                    Contact = "student2@library.edu",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Student@123"),
+                    Role = "Student",
+                    IsVerified = true
+                }
+            );
+        }
+
+        var librarianEmail = "librarian1@library.edu";
+        var librarian = await db.Students.FirstOrDefaultAsync(s => s.Contact == librarianEmail);
+        if (librarian == null)
+        {
+            db.Students.Add(new Student
+            {
+                Name = "Library Librarian",
+                RollNo = "LIB-001",
+                Dept = "Library Services",
+                Semester = 1,
+                Contact = librarianEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Lib@1234"),
+                Role = "Librarian",
+                IsVerified = true
+            });
+        }
+        else
+        {
+            librarian.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Lib@1234");
+            librarian.Role = "Librarian";
+            librarian.IsVerified = true;
+        }
+
+        await db.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Warning: database seeding failed: {ex.Message}");
+    }
 }
 
 app.Run();

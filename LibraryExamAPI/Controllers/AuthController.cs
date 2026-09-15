@@ -24,12 +24,14 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly JwtTokenService _jwtTokenService;
     private readonly IOtpEmailService _otpEmailService;
+    private readonly IWebHostEnvironment _env;
 
-    public AuthController(AppDbContext db, JwtTokenService jwtTokenService, IOtpEmailService otpEmailService)
+    public AuthController(AppDbContext db, JwtTokenService jwtTokenService, IOtpEmailService otpEmailService, IWebHostEnvironment env)
     {
         _db = db;
         _jwtTokenService = jwtTokenService;
         _otpEmailService = otpEmailService;
+        _env = env;
     }
 
     [HttpPost("register")]
@@ -201,6 +203,63 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"{request.Role} account created successfully.", userId = user.StudentId });
+    }
+
+    // Development-only: seed default users (Admin, Student, Librarian)
+    [HttpPost("admin/seed-defaults")]
+    public async Task<IActionResult> SeedDefaults()
+    {
+        if (!_env.IsDevelopment())
+        {
+            return Forbid();
+        }
+
+        var defaults = new[]
+        {
+            new { Name = "System Administrator", RollNo = "ADMIN-001", Dept = "Administration", Semester = 1, Email = "admin@library.edu", Password = "Admin@123", Role = "Admin", IsVerified = true },
+            new { Name = "Student One", RollNo = "CS-2024-001", Dept = "Computer Science", Semester = 2, Email = "student1@library.edu", Password = "Student@123", Role = "Student", IsVerified = true },
+            new { Name = "Library Librarian", RollNo = "LIB-001", Dept = "Library Services", Semester = 1, Email = "librarian1@library.edu", Password = "Lib@1234", Role = "Librarian", IsVerified = true }
+        };
+
+        foreach (var d in defaults)
+        {
+            var existing = await _db.Students.FirstOrDefaultAsync(s => s.Contact == d.Email);
+            if (existing == null)
+            {
+                _db.Students.Add(new Student
+                {
+                    Name = d.Name,
+                    RollNo = d.RollNo,
+                    Dept = d.Dept,
+                    Semester = d.Semester,
+                    Contact = d.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(d.Password),
+                    Role = d.Role,
+                    IsVerified = d.IsVerified
+                });
+            }
+            else
+            {
+                existing.Name = d.Name;
+                existing.RollNo = d.RollNo;
+                existing.Dept = d.Dept;
+                existing.Semester = d.Semester;
+                existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(d.Password);
+                existing.Role = d.Role;
+                existing.IsVerified = d.IsVerified;
+            }
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Seeding failed.", detail = ex.Message });
+        }
+
+        return Ok(new { message = "Default users seeded/updated." });
     }
 
     [HttpGet("users")]
