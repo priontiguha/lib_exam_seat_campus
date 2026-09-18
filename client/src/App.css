@@ -1376,6 +1376,10 @@ button[type='submit']:hover,
   cursor: pointer;
 }
 
+.mobile-sidebar-toggle {
+  display: none;
+}
+
 .profile-button {
   display: flex;
   align-items: center;
@@ -1597,6 +1601,102 @@ tr:hover td {
 
 .library-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Responsive overrides to ensure sidebar and pages adapt correctly on small screens */
+@media (max-width: 1024px) {
+  .dashboard-shell {
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-shell {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+    position: static;
+    top: auto;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: none;
+  }
+
+  .sidebar.collapsed {
+    width: 100%;
+    min-width: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .sidebar-top {
+    flex-direction: row;
+    align-items: center;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+
+  .collapse-toggle {
+    display: none;
+  }
+
+  .mobile-sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(148, 163, 184, 0.04);
+    color: var(--text);
+    cursor: pointer;
+    margin-right: 8px;
+  }
+
+
+
+  /* Hide the sidebar entirely when collapsed on small screens */
+  .sidebar.collapsed {
+    display: none;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .chart-grid {

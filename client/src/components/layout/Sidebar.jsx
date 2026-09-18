@@ -37,7 +37,11 @@ const baseItems = [
 export default function Sidebar({ isAdmin, activeSection, collapsed, onToggle, onNavigate, currentRole }) {
   const items = currentRole === 'Student'
     ? [{ id: 'overview', label: 'Student Home', icon: LayoutGrid }]
-    : isAdmin ? [...baseItems, { id: 'users', label: 'Users', icon: Users }] : baseItems;
+    : isAdmin
+      ? [...baseItems, { id: 'users', label: 'Users', icon: Users }]
+      : currentRole === 'Librarian'
+        ? baseItems.filter((item) => item.id !== 'exams')
+        : baseItems;
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
