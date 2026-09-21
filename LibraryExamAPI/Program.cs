@@ -1,5 +1,4 @@
 using System.Text;
-using HotChocolate;
 using LibraryExamAPI;
 using LibraryExamAPI.Data;
 using LibraryExamAPI.Hubs;
@@ -64,9 +63,7 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<RecommendationService>();
 builder.Services.AddScoped<IOtpEmailService, OtpEmailService>();
 
-builder.Services
-    .AddGraphQLServer()
-    .AddQueryType<QueryType>();
+// GraphQL removed: HotChocolate configuration removed as frontend uses REST endpoints
 
 builder.Services.AddCors(options =>
 {
@@ -101,7 +98,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHub<NotificationHub>("/hubs/notifications");
-app.MapGraphQL();
 app.MapControllers();
 
 app.MapGet("/api/ping", () => new { status = "ok", message = "LibraryExamAPI is running." })
