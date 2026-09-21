@@ -8,8 +8,26 @@ async function request(path, options = {}) {
     ...options.headers,
   };
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Request failed');
+
+  // Attempt to parse JSON body safely
+  let data = null;
+  try {
+    // Some endpoints may return empty body on errors
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  // Handle unauthorized centrally: clear stored auth and reload to force login
+  if (response.status === 401) {
+    localStorage.removeItem('libraryToken');
+    localStorage.removeItem('libraryUser');
+    // reload to ensure app goes to login state
+    try { window.location.href = '/'; } catch { /* ignore when not in browser env */ }
+    throw new Error((data && data.message) || 'Session expired. Please log in again.');
+  }
+
+  if (!response.ok) throw new Error((data && data.message) || 'Request failed');
   return data;
 }
 

@@ -84,6 +84,30 @@ function App() {
     }
   }, [currentUser]);
 
+  // On app start, if a token exists but no currentUser is loaded, try to fetch profile.
+  useEffect(() => {
+    const tryRestoreSession = async () => {
+      const token = localStorage.getItem('libraryToken');
+      if (!token) return;
+      if (currentUser) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/Auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.message || 'Failed to restore session');
+        setCurrentUser(data);
+        // persist for future reloads
+        try { localStorage.setItem('libraryUser', JSON.stringify(data)); } catch {}
+      } catch (error) {
+        // token invalid/expired — clear and force login
+        localStorage.removeItem('libraryToken');
+        localStorage.removeItem('libraryUser');
+        setCurrentUser(null);
+      }
+    };
+
+    tryRestoreSession();
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
 
@@ -231,6 +255,7 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('libraryToken');
+    localStorage.removeItem('libraryUser');
     setCurrentUser(null);
     setUsers([]);
     setStatus({ type: 'success', message: 'Logged out successfully.' });
