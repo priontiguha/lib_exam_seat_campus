@@ -123,12 +123,7 @@
 - [x] Error handling and status codes
 
 ### 📊 GraphQL Integration
-- [x] HotChocolate GraphQL setup
-- [x] GraphQL query endpoint
-- [x] Book queries
-- [x] Student queries
-- [x] Seat allocation queries
-- [x] Recommendation queries
+- [ ] Not implemented / removed
 
 ### 🤖 AI-Powered Features
 - [x] Recommendation System (RecommendationService)
