@@ -12,7 +12,7 @@ export default function AuthView({
         <form onSubmit={onLogin} className="auth-form" noValidate>
           <label>Email address<input type="email" value={loginForm.email} onChange={(event) => onLoginChange('email', event.target.value)} required /></label>
           <label>Password<input type="password" value={loginForm.password} onChange={(event) => onLoginChange('password', event.target.value)} required /></label>
-          <div className="demo-credentials"><small>Default admin: admin@library.edu / Admin@123</small></div>
+          {/* <div className="demo-credentials"><small>Default admin: admin@library.edu / Admin@123</small></div> */}
           {status.message && <div className={`message ${status.type}`}>{status.message}</div>}
           <button type="submit" className="btn btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Signing in...' : 'Login'}</button>
         </form>

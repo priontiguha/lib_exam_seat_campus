@@ -18,8 +18,8 @@ import { useAuthActions } from './hooks/useAuthActions';
 import './App.css';
 
 const initialLoginForm = {
-  email: 'admin@library.edu',
-  password: 'Admin@123',
+  email: 'admin@puc.edu',
+  password: 'admin@puc.edu',
 };
 
 const initialUserForm = {
