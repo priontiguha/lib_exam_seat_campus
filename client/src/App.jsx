@@ -63,6 +63,15 @@ function App() {
   const [myExamAllocations, setMyExamAllocations] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [liveNotifications, setLiveNotifications] = useState([]);
+  // merged list used by dropdown
+  const mergedNotifications = [...liveNotifications, ...notifications].map((n, idx) => ({
+    id: n.id || `${n.type}-${idx}-${(n.createdAt||'').toString()}`,
+    type: n.type,
+    message: n.message,
+    createdAt: n.createdAt,
+    actorRole: n.actorRole,
+    read: n.read || false,
+  }));
   const [socketStatus, setSocketStatus] = useState(''); // 'connected'|'reconnecting'|'disconnected'|''
   const [notificationMessage, setNotificationMessage] = useState('');
   const [recommendedBooks, setRecommendedBooks] = useState([]);
@@ -346,6 +355,9 @@ function App() {
           onLogout={logout}
           collapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          notifications={mergedNotifications}
+          onMarkRead={(id) => setLiveNotifications((cur) => cur.map(n => n.id === id ? { ...n, read: true } : n))}
+          onMarkAllRead={() => { setLiveNotifications((cur) => cur.map(n => ({ ...n, read: true }))); setNotifications((cur) => cur.map(n => ({ ...n, read: true }))); }}
         />
 
         <Suspense fallback={<div className="content-area"><div className="section active"><div className="loading-skeleton"><span className="skeleton-block skeleton-wide" /><span className="skeleton-block skeleton-wide" /></div></div></div>}>

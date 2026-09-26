@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, LogOut, Moon, Search, SunMedium, UserRound } from 'lucide-react';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const sectionLabels = {
   'library-books': 'Books',
@@ -9,7 +10,7 @@ const sectionLabels = {
   'exam-allocations': 'Allocations',
 };
 
-export default function Topbar({ activeSection, search, onSearchChange, theme, onToggleTheme, currentUser, onProfile, onLogout, collapsed, onToggleSidebar }) {
+export default function Topbar({ activeSection, search, onSearchChange, theme, onToggleTheme, currentUser, onProfile, onLogout, collapsed, onToggleSidebar, notifications = [], onMarkRead, onMarkAllRead }) {
   const title = sectionLabels[activeSection] || activeSection.charAt(0).toUpperCase() + activeSection.slice(1);
 
   return (
@@ -23,6 +24,7 @@ export default function Topbar({ activeSection, search, onSearchChange, theme, o
       <div className="topbar-actions">
         <label className="top-search"><Search size={16} /><input type="search" placeholder="Search..." value={search} onChange={(event) => onSearchChange(event.target.value)} /></label>
         <button type="button" className="icon-button" aria-label="Toggle theme" onClick={onToggleTheme}>{theme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />}</button>
+        <NotificationsDropdown notifications={notifications} unreadCount={notifications.filter(n => !n.read).length} onMarkRead={onMarkRead} onMarkAllRead={onMarkAllRead} />
         <button type="button" className="profile-button" onClick={onProfile}><span className="profile-avatar"><UserRound size={16} /></span><span className="profile-meta"><strong>{currentUser.name}</strong><small>{currentUser.role}</small></span></button>
         <button type="button" className="icon-button" onClick={onLogout} title="Logout"><LogOut size={18} /></button>
       </div>
