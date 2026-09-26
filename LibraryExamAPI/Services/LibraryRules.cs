@@ -34,20 +34,19 @@ public static class LibraryRules
         var seats = new List<SeatPosition>();
         var benchCount = (int)Math.Ceiling(totalStudents / (double)seatsPerBench);
 
-        for (var index = 0; index < totalStudents; index++)
+        // Improved allocation: interleave students across benches to reduce adjacent seating
+        // For bench 1..benchCount, fill seat positions 1..seatsPerBench by distributing student indices
+        for (var seatNo = 1; seatNo <= seatsPerBench; seatNo++)
         {
-            var benchNo = (index % benchCount) + 1;
-            var seatNo = (index / benchCount) + 1;
-
-            if (seatNo > seatsPerBench)
+            for (var benchNo = 1; benchNo <= benchCount; benchNo++)
             {
-                break;
+                var currentIndex = (seatNo - 1) * benchCount + (benchNo - 1);
+                if (currentIndex >= totalStudents) break;
+                seats.Add(new SeatPosition { BenchNo = benchNo, SeatNo = seatNo });
             }
-
-            seats.Add(new SeatPosition { BenchNo = benchNo, SeatNo = seatNo });
         }
 
-        return seats;
+        return seats.Take(totalStudents).ToList();
     }
 }
 

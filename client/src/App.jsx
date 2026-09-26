@@ -61,6 +61,8 @@ function App() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [myLibraryIssues, setMyLibraryIssues] = useState([]);
   const [myExamAllocations, setMyExamAllocations] = useState([]);
+  const [myExamRoutine, setMyExamRoutine] = useState([]);
+  const [availableBooks, setAvailableBooks] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [liveNotifications, setLiveNotifications] = useState([]);
   // merged list used by dropdown
@@ -242,24 +244,34 @@ function App() {
     setLoadingResources((current) => ({ ...current, student: true }));
     try {
       const token = localStorage.getItem('libraryToken');
-      const [issuesResponse, allocationsResponse] = await Promise.all([
+      const [issuesResponse, allocationsResponse, routineResponse, booksResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/Library/my-issues`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${API_BASE_URL}/api/Exam/my-allocations`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch(`${API_BASE_URL}/api/Exam/my-routine`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE_URL}/api/Library/books`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       const issuesData = await issuesResponse.json();
       const allocationsData = await allocationsResponse.json();
+      const routineData = await routineResponse.json();
+      const booksData = await booksResponse.json();
 
-      if (!issuesResponse.ok || !allocationsResponse.ok) {
+      if (!issuesResponse.ok || !allocationsResponse.ok || !routineResponse.ok || !booksResponse.ok) {
         throw new Error('Failed to load student dashboard data');
       }
 
       setMyLibraryIssues(issuesData || []);
       setMyExamAllocations(allocationsData || []);
+      setMyExamRoutine(routineData || []);
+      setAvailableBooks((booksData.items || booksData || []).filter((book) => Number(book.copiesAvailable) > 0));
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
@@ -407,6 +419,8 @@ function App() {
             recommendedBooks={recommendedBooks}
             libraryIssues={myLibraryIssues}
             examAllocations={myExamAllocations}
+            examRoutine={myExamRoutine}
+            availableBooks={availableBooks}
           />
         </div>
         </Suspense>

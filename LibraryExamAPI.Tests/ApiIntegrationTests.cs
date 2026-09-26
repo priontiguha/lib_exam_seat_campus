@@ -13,9 +13,11 @@ namespace LibraryExamAPI.Tests;
 public class ApiIntegrationTests : IClassFixture<TestWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly TestWebApplicationFactory _factory;
 
     public ApiIntegrationTests(TestWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -73,6 +75,58 @@ public class ApiIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.False(string.IsNullOrWhiteSpace(loginPayload!.token));
     }
 
+    [Fact]
+    public async Task StudentCanFetchTheirExamRoutine()
+    {
+        var email = "routine.student@example.com";
+        var password = "Routine@123";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LibraryExamAPI.Data.AppDbContext>();
+            db.Students.RemoveRange(db.Students.Where(s => s.Contact == email));
+            db.Students.Add(new LibraryExamAPI.Models.Student
+            {
+                Name = "Routine Student",
+                RollNo = "INT-9002",
+                Dept = "Computer Science",
+                Semester = 3,
+                Contact = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = "Student",
+                IsVerified = true
+            });
+            db.Exams.RemoveRange(db.Exams.Where(e => e.Course == "Algorithms"));
+            db.Exams.Add(new LibraryExamAPI.Models.Exam
+            {
+                Course = "Algorithms",
+                Semester = 3,
+                ExamDate = new DateTime(2026, 10, 12),
+                TimeSlot = "09:00-11:00"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email,
+            password
+        });
+
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+        Assert.NotNull(loginPayload);
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginPayload!.token);
+
+        var routineResponse = await _client.GetAsync("/api/Exam/my-routine");
+        Assert.Equal(HttpStatusCode.OK, routineResponse.StatusCode);
+
+        var routine = await routineResponse.Content.ReadFromJsonAsync<List<ExamRoutineItem>>();
+        Assert.NotNull(routine);
+        Assert.Contains(routine!, item => item.course == "Algorithms" && item.semester == 3);
+    }
+
     private sealed class PingResponse
     {
         public string status { get; set; } = string.Empty;
@@ -88,6 +142,18 @@ public class ApiIntegrationTests : IClassFixture<TestWebApplicationFactory>
     private sealed class LoginResponse
     {
         public string token { get; set; } = string.Empty;
+    }
+
+    private sealed class ExamRoutineItem
+    {
+        public int examId { get; set; }
+        public string course { get; set; } = string.Empty;
+        public int semester { get; set; }
+        public DateTime examDate { get; set; }
+        public string timeSlot { get; set; } = string.Empty;
+        public string roomNo { get; set; } = string.Empty;
+        public int benchNo { get; set; }
+        public int seatNo { get; set; }
     }
 }
 

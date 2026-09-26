@@ -325,6 +325,62 @@ public class ExamController : ControllerBase
         return Ok(allocations);
     }
 
+    [HttpGet("my-routine")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> GetMyRoutine()
+    {
+        var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Unauthorized(new { message = "User email is not available in the token." });
+        }
+
+        var student = await _db.Students.FirstOrDefaultAsync(s => s.Contact == email);
+        if (student == null)
+        {
+            return NotFound(new { message = "Student profile not found." });
+        }
+
+        var examIds = await _db.SeatAllocations
+            .Where(sa => sa.StudentId == student.StudentId)
+            .Select(sa => sa.ExamId)
+            .Distinct()
+            .ToListAsync();
+
+        if (examIds.Count == 0)
+        {
+            return Ok(Array.Empty<object>());
+        }
+
+        var routine = await _db.Exams
+            .Where(e => examIds.Contains(e.ExamId))
+            .OrderBy(e => e.ExamDate)
+            .ThenBy(e => e.TimeSlot)
+            .Select(e => new
+            {
+                examId = e.ExamId,
+                course = e.Course,
+                semester = e.Semester,
+                examDate = e.ExamDate,
+                timeSlot = e.TimeSlot,
+                roomNo = _db.SeatAllocations
+                    .Where(sa => sa.ExamId == e.ExamId && sa.StudentId == student.StudentId)
+                    .Select(sa => sa.Room.RoomNo)
+                    .FirstOrDefault(),
+                benchNo = _db.SeatAllocations
+                    .Where(sa => sa.ExamId == e.ExamId && sa.StudentId == student.StudentId)
+                    .Select(sa => sa.BenchNo)
+                    .FirstOrDefault(),
+                seatNo = _db.SeatAllocations
+                    .Where(sa => sa.ExamId == e.ExamId && sa.StudentId == student.StudentId)
+                    .Select(sa => sa.SeatNo)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return Ok(routine);
+    }
+
     [HttpGet("seat-charts/{examId:int}/pdf")]
     [Authorize(Roles = "Admin,Exam Coordinator,Librarian")]
     public async Task<IActionResult> ExportSeatChartPdf(int examId)
@@ -489,6 +545,22 @@ public class ExamController : ControllerBase
             roomIndex = (roomIndex + 1) % rooms.Count;
         }
 
+        // Determine invigilator assignments: if request.InvigilatorId provided, use it for all;
+        // otherwise fetch available invigilators and assign one per room round-robin.
+        var invigilatorPool = new List<int>();
+        if (request.InvigilatorId.HasValue)
+        {
+            invigilatorPool.Add(request.InvigilatorId.Value);
+        }
+        else
+        {
+            invigilatorPool = await _db.Invigilators.OrderBy(i => i.Name).Select(i => i.StaffId).ToListAsync();
+            if (invigilatorPool.Count == 0)
+            {
+                // No invigilators available — proceed but leave InvigilatorId null
+            }
+        }
+
         var allocations = new List<SeatAllocation>();
         foreach (var assignment in roomAssignments)
         {
@@ -500,6 +572,16 @@ public class ExamController : ControllerBase
             var room = rooms.First(r => r.RoomId == assignment.RoomId);
             var seatPlan = LibraryRules.GenerateSeatPlan(assignment.Students.Count, 10);
 
+            // pick invigilator for this room (if pool available)
+            int? assignedInvigilator = null;
+            if (invigilatorPool.Count > 0)
+            {
+                // simple deterministic assignment: pick by room index in rooms list
+                var roomOrderIndex = rooms.IndexOf(room);
+                if (roomOrderIndex < 0) roomOrderIndex = 0;
+                assignedInvigilator = invigilatorPool[roomOrderIndex % invigilatorPool.Count];
+            }
+
             for (var i = 0; i < assignment.Students.Count; i++)
             {
                 var seat = seatPlan[i];
@@ -510,12 +592,23 @@ public class ExamController : ControllerBase
                     StudentId = assignment.Students[i],
                     BenchNo = seat.BenchNo,
                     SeatNo = seat.SeatNo,
-                    InvigilatorId = request.InvigilatorId
+                    InvigilatorId = assignedInvigilator
                 });
             }
         }
 
         _db.SeatAllocations.AddRange(allocations);
+
+        // Record audit log for seat-plan generation
+        await _db.AuditLogs.AddAsync(new AuditLog
+        {
+            Action = "GenerateSeatPlan",
+            EntityType = "Exam",
+            EntityId = request.ExamId,
+            PerformedBy = User.Identity?.Name ?? "system",
+            Details = $"Generated seat allocation: {allocations.Count} seats across {rooms.Count} rooms."
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new
