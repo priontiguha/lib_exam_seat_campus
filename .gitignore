@@ -42,7 +42,6 @@ LibraryExamAPI.Tests/obj/
 *.sqlite
 *.sqlite3
 postgres-data/
-data/
 
 # Build and publish output
 publish/
