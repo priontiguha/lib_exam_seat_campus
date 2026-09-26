@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
 import ToastStack from './components/feedback/ToastStack';
 import AuthView from './components/auth/AuthView';
@@ -62,6 +62,8 @@ function App() {
   const [myLibraryIssues, setMyLibraryIssues] = useState([]);
   const [myExamAllocations, setMyExamAllocations] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [liveNotifications, setLiveNotifications] = useState([]);
+  const [socketStatus, setSocketStatus] = useState(''); // 'connected'|'reconnecting'|'disconnected'|''
   const [notificationMessage, setNotificationMessage] = useState('');
   const [recommendedBooks, setRecommendedBooks] = useState([]);
 
@@ -108,24 +110,57 @@ function App() {
     tryRestoreSession();
   }, []);
 
+  const connectionRef = useRef(null);
+
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      // User logged out — stop any active connection
+      if (connectionRef.current) {
+        connectionRef.current.stop();
+        connectionRef.current = null;
+      }
+      setSocketStatus('');
+      return;
+    }
+
+    // Avoid creating a second connection if one already exists
+    if (connectionRef.current) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_BASE_URL}/hubs/notifications`)
-      .withAutomaticReconnect()
+      .withUrl(`${API_BASE_URL}/hubs/notifications`, {
+        // Browser WebSockets can't set Authorization headers;
+        // SignalR reads this from ?access_token= on the handshake request
+        accessTokenFactory: () => localStorage.getItem('libraryToken') || '',
+      })
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .build();
 
+    connectionRef.current = connection;
+
     connection.on('ReceiveNotification', (payload) => {
-      setNotifications((current) => [{ type: 'live', message: payload.message }, ...current].slice(0, 8));
+      setLiveNotifications((prev) =>
+        [{ type: payload.type || 'live', message: payload.message }, ...prev].slice(0, 8)
+      );
     });
 
-    connection.start().catch(() => {
-      setNotifications((current) => [...current, { type: 'info', message: 'Realtime updates are unavailable right now.' }]);
+    connection.onreconnecting(() => setSocketStatus('reconnecting'));
+    connection.onreconnected(() => setSocketStatus('connected'));
+    connection.onclose(() => {
+      setSocketStatus('disconnected');
+      connectionRef.current = null;
     });
+
+    connection
+      .start()
+      .then(() => setSocketStatus('connected'))
+      .catch(() => {
+        setSocketStatus('disconnected');
+        connectionRef.current = null;
+      });
 
     return () => {
       connection.stop();
+      connectionRef.current = null;
     };
   }, [currentUser]);
 
@@ -331,6 +366,8 @@ function App() {
             active={activeSection === 'notifications'}
             isAdmin={isAdmin}
             notifications={notifications}
+            liveNotifications={liveNotifications}
+            socketStatus={socketStatus}
             notificationMessage={notificationMessage}
             onMessageChange={setNotificationMessage}
             onBroadcast={notificationActions.broadcast}

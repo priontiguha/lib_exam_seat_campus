@@ -105,6 +105,7 @@ public class NotificationsController : ControllerBase
         var actorRole = User.FindFirstValue(ClaimTypes.Role) ?? "System";
         await _hub.Clients.All.SendAsync("ReceiveNotification", new
         {
+            type = "live",
             message = request.Message,
             createdAt = DateTime.UtcNow,
             actorRole
